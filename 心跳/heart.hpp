@@ -10,8 +10,8 @@
  */
 
 
-#ifndef _MY_HEART
-#define _MY_HEART 1
+#ifndef _MY_HEART_H
+#define _MY_HEART_H 1
 
 #include <iostream>
 #include <stdio.h>

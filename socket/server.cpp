@@ -11,11 +11,13 @@
 
 #include "socket.hpp"
 #include <thread>
+#include "fd.hpp"
 
 
 int thread_main();
 
 
+class CFd *fds = new CFd(5);
 class CSocket *server_socket = new CSocket("tcp");
 
 int main(int argc, char const *argv[])
@@ -26,8 +28,7 @@ int main(int argc, char const *argv[])
     server_socket->Listen();
 
     std::thread *my_thread = new std::thread(thread_main);
-    // my_thread->join();
-    // thread_main();
+    my_thread->detach();
     while(1);
 
     server_socket->Close();
@@ -37,22 +38,33 @@ int main(int argc, char const *argv[])
 
 int thread_main()
 {
+    int a[100];
+    for(int i = 0; i < 100; i++)
+    {
+        a[i] = i;
+    }
     printf("new thread\n");
-    class CSocket *client_socket = new CSocket(server_socket->Accept());
+    int _socket = server_socket->Accept();
+    fds->Add(_socket);
+    class CSocket *client_socket = new CSocket(_socket);
     printf("link\n");
     std::thread *my_thread_child = new std::thread(thread_main);
+    my_thread_child->detach();
     if(client_socket->Socket() < 0)
     {
         printf("accept erro\n");
         printf("thread exit\n");
+        fds->Delete(_socket);
         return -1;
     }
+
     while(client_socket->Recv() >= 0 && client_socket->IsConnect())
     {
         printf("recv: %s\n", client_socket->Buf());
     }
     client_socket->Close();
     printf("thread exit\n");
+    fds->Delete(_socket);
 
     return 0;
 }

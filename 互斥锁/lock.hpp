@@ -2,6 +2,8 @@
  * @file lock.hpp
  * @author csu-lf (csu.lifeng@qq.com)
  * @brief 多线程工具，防止数据被不同线程同时使用的互斥锁工具（原本函数名太难记了，封装一下）
+ * C++ #include <mutex> 的互斥锁很好用，别用这个了
+ * 
  * @version 0.1
  * @date 2021-07-04
  * 

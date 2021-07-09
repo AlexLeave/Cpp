@@ -1,7 +1,7 @@
 /**
  * @file poll.hpp
  * @author csu-lf (csu.lifeng@qq.com)
- * @brief 把 poll函数 封装成类，一个文件流创建一个类对象就能判断文件状态
+ * @brief 用fd.hpp。把 poll函数 封装成类，一个文件流创建一个类对象就能判断文件状态
  * @version 0.1
  * @date 2021-07-07
  * 
