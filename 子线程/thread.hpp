@@ -1,3 +1,13 @@
+/**
+ * @file thread.hpp
+ * @author csu-lf (csu.lifeng@qq.com)
+ * @brief 封装C语言的 pthread.h
+ * @version 0.1
+ * @date 2021-07-09
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 #ifndef _MY_THREAD
 #define _MY_THREAD 1
 
@@ -13,7 +23,8 @@ class CThread
 
     public:
     /**
-     * @brief 创建一个子线程，结束自动释放资源的子线程
+     * @brief 创建一个子线程，结束自动释放资源的子线程，C++11 居然有自己的线程类，还挺好用的...能不用这个就别用了
+     * C++11 类头文件 #include <thread>
      * 
      * @param start_rtn 子线程函数名
      * @param arg 向子线程函数传递的参数

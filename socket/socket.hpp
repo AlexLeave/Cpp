@@ -2,7 +2,9 @@
  * @file socket.hpp
  * @author csu-lf (csu.lifeng@qq.com)
  * @brief 封装了常用的网络编程的socket成CSocket类，请愉快的使用吧
- * @version 0.1
+ * 0.2 版本更改了类部分结构，让它更加适合多线程编程
+ * 
+ * @version 1.1
  * @date 2021-07-02
  * 
  * @copyright Copyright (c) 2021
@@ -22,8 +24,6 @@
 #include <string>
 #include <cstring>
 
-#include "poll.hpp"
-
 
 /**
  * @brief 使用C++类封装socket，创建socket只需要创建这个类，服务端socket使用server开头命名的函数
@@ -35,7 +35,6 @@ class CSocket{
     int _socket;
     char buf[5*1024]; // 测试接收web页面专用大小
     struct sockaddr_in clntAddr; //结构体，存放客户端socket信息
-    int _socket_client; // 保存服务端监听到的客户端socket
     std::string _type = "tcp";
 
 
@@ -59,12 +58,27 @@ class CSocket{
         memset(buf, 0, sizeof(buf));
     }
 
-    int get_socket()
+    /**
+     * @brief 把一个 socket 交给 CSocket类 来管理
+     * 
+     * @param socket 交给我的socket
+     */
+    CSocket(int socket)
+    {
+        _socket = socket;
+    }
+
+    /**
+     * @brief 返回 socket 文件描述符
+     * 
+     * @return int 
+     */
+    int Socket()
     {
         return _socket;
     }
 
-    char * get_buf()
+    char * Buf()
     {
         return buf;
     }
@@ -73,7 +87,7 @@ class CSocket{
      * @brief 把 buf缓冲区清空
      * 
      */
-    void clear_buf()
+    void ClearBuf()
     {
         memset(buf, 0, sizeof(buf));
     }
@@ -81,12 +95,12 @@ class CSocket{
 // 服务端专用函数
 
     /**
-     * @brief 绑定本机端口，默认监听所有网卡（0.0.0.0）
+     * @brief 作为服务端第一步，绑定本机端口，默认监听所有网卡（0.0.0.0）
      * 
      * @param port 端口号
      * @return int 
      */
-    int server_bind(int port)
+    int Bind(int port)
     {
         
         struct sockaddr_in serverAddr;
@@ -99,22 +113,23 @@ class CSocket{
     }
 
     /**
-     * @brief 设置成监听模式
+     * @brief 作为服务端第二步，设置成监听模式
      * 
      * @return int 同 listen 函数
      */
-    int server_listen()
+    int Listen()
     {
         return listen(_socket, 20);
         
     }
 
     /**
-     * @brief 阻塞等待客户端连接
+     * @brief 阻塞等待客户端连接，这会产生一个和客户端连接的新的socket，请你保存好 
+     * 你也可以使用 new CSocket(返回的int) 来把这个socket交给我的其它对象管理
      * 
      * @return int 返回客户端socket
      */
-    int server_accept()
+    int Accept()
     {
         socklen_t clntAddrSize = sizeof(clntAddr); // 结构体大小
 
@@ -122,69 +137,25 @@ class CSocket{
         
         // printf("客户端（%s）已连接。\n",inet_ntoa(clntAddr.sin_addr));
 
-        return _socket_client = accept(_socket, (struct sockaddr*)&clntAddr, &clntAddrSize);
+        return accept(_socket, (struct sockaddr*)&clntAddr, &clntAddrSize);
         
     }
 
     /**
-     * @brief 直接初始化服务端socket，直接就可以让socket发送和接收了
+     * @brief 直接初始化作为服务端socket，直接等待客户端连接
      * 
      * @param port 监听的端口号
+     * 
+     * @return int 连接到客户端的socket
      */
-    bool server_init(int port)
+    int S_Init(int port)
     {
-        if (server_bind(port) == 0 && server_listen() == 0)
+        if (Bind(port) == 0 && Listen() == 0)
         {
             // socket监听成功
-            if(server_accept() >= 0) return true;
+            return Accept();
         }
-        return false;
-    }
-
-
-    /**
-     * @brief 接收客户端消息
-     * 
-     * @return char* 客户端发过来的消息，最大5KB字符
-     */
-    char* server_recv()
-    {
-        
-        clear_buf();
-        if (recv(_socket_client, buf, sizeof(buf), 0) < 0)
-        {
-            perror("recv错误：\n");
-        }
-        // printf("%s", buf);
-        return buf;
-    }
-
-    /**
-     * @brief 发送数据给客户端
-     * 
-     * @param buffer 要发送的数据
-     * @return int 同 send 函数
-     */
-    int server_send(char* buffer)
-    {
-        return send(_socket_client, buffer, strlen(buf), 0);
-        
-    }
-
-    /**
-     * @brief 查看 socket 是否还连接着
-     * 
-     * @return true 未断开
-     * @return false 已断开
-     */
-    bool is_connect_server()
-    {
-        struct tcp_info info; 
-        int len=sizeof(info); 
-        if (getsockopt(_socket_client, IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len) < 0) 
-            return false;
-        if(info.tcpi_state == TCP_ESTABLISHED) return true;
-        else return false;
+        return -1;
     }
 
 
@@ -201,9 +172,9 @@ class CSocket{
      * 
      * @param ip 服务器地址
      * @param port 服务器开放连接的端口号
-     * @return int 同 connect 函数
+     * @return int 同 connect 函数，成功 0 ，失败 -1
      */
-    int client_connect(const char * ip, int port)
+    int Connect(const char * ip, int port)
     {
         struct sockaddr_in serverAddr;
         memset(&serverAddr, 0, sizeof(serverAddr));
@@ -214,13 +185,17 @@ class CSocket{
         return connect(_socket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
     }
 
+
+//---------------------------------------------
+
+
     /**
-     * @brief 发送消息给服务器
+     * @brief 通过 socket 发送消息
      * 
      * @param buffer 要发送的数据
      * @return int 同 send 函数
      */
-    int client_send(char *buffer)
+    int Send(char *buffer)
     {
         int ret = send(_socket, buffer, strlen(buffer), 0);
         if(ret == -1)
@@ -232,13 +207,13 @@ class CSocket{
     }
 
     /**
-     * @brief 接收服务器消息
+     * @brief 通过 socket 阻塞接收服务器消息，若对方断开则会马上返回0
      * 
      * @return int 接收的字符串数量
      */
-    int client_recv()
+    int Recv()
     {
-        clear_buf();
+        ClearBuf();
         int bytes = recv(_socket, buf, sizeof(buf), 0);
         if ( bytes < 0)
         {
@@ -246,7 +221,7 @@ class CSocket{
         }
         else if ( bytes == 0 )
         {
-            if (is_connect_client()) printf("断开了连接\n");
+            if (IsConnect()) printf("断开了连接\n");
         }
         return bytes;
     }
@@ -257,7 +232,7 @@ class CSocket{
      * @return true 未断开
      * @return false 已断开
      */
-    bool is_connect_client()
+    bool IsConnect()
     {
         struct tcp_info info; 
         int len=sizeof(info); 
@@ -267,29 +242,15 @@ class CSocket{
     }
     
 
-//---------------------------------------------
-
     /**
      * @brief 作为服务端关闭用于监听的socket，作为客户端关闭与服务端的连接
      * 
      * @return int 同 close 函数
      */
-    int socket_close()
+    int Close()
     {
         return close(_socket);
     }
-
-    /**
-     * @brief 服务端关闭和客户端连接的socket
-     * 
-     * @return int 使用 close函数 返回
-     */
-    int socket_close_server()
-    {
-        return close(_socket_client);
-    }
-
-
 
 
 };

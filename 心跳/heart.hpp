@@ -2,7 +2,7 @@
  * @file heart.hpp
  * @author csu-lf (csu.lifeng@qq.com)
  * @brief 封装一个用于检测心跳的类，用起来真的很方便呢，使用计数器思路设计检测心跳子线程
- * @version 0.2
+ * @version 1.1
  * @date 2021-07-06
  * 
  * @copyright Copyright (c) 2021
@@ -50,12 +50,14 @@ class CHeart{
             }
         }
 
+
         /**
          * @brief 升级版检查心跳子线程，精度为 一秒，每次心跳完后必须在 T秒内 再次心跳心脏才不会死
-         * 线程死掉会delete 这颗心脏
          * 
+         * @param obj 
+         * @param others 
          */
-        static void check_beats_exact(class CHeart *obj)
+        static void check_beats_exact(class CHeart *obj, void * others = NULL)
         {
             int cnt = 0; // 精确检测心跳线程函数的计数器
             while(cnt < obj->get_T())
@@ -117,6 +119,13 @@ class CHeart{
         int set_id(int ID) {id = ID; return id; }
 
         /**
+         * @brief 返回监测心跳函数子线程指针
+         * 
+         * @return std::thread* 
+         */
+        std::thread *beat_thread(){ return beat_thread; }
+
+        /**
          * @brief 返回是否需要判断的物体存活
          * 
          * @return true 存活
@@ -152,12 +161,14 @@ class CHeart{
          * @brief 初始化，创建子线程检查每 t秒 的心跳，第一次检查是 t秒 后
          * 
          * @param t 需要把心跳间隔时间设置成t秒 
+         * @param others 其它你想要传递给心跳监测函数的东西都可以放在这里，然后自己添加内容
+         * 
          * @return std::thread* 返回心跳子线程
          */
-        std::thread * init(int t = 5)
+        std::thread * init(int t = 5, void * others = NULL)
         {
             set_T(t);
-            if(alive) beat_thread = new std::thread(check_beats_exact, this);
+            if(alive) beat_thread = new std::thread(check_beats_exact, this, others);
 
             return beat_thread;
         }

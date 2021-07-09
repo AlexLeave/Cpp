@@ -34,7 +34,7 @@ class CLock
 
     public:
     /**
-     * @brief 创建一个默认属性的互斥锁
+     * @brief 创建一个默认属性的互斥锁，C++11 也有自己的互斥锁类 class mutex #include <mutex>，蛮好用的
      * 
      */
     CLock()
