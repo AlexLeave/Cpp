@@ -127,6 +127,37 @@ class CFd
 
 
 
+
+    /**
+     * @brief 判断文件流当前状态，返回当前所选文件流里面是否有想要的状态
+     * 
+     * @param index 按照index选择类里面的文件标识符来判断
+     * @param events POLL_READ 是否可读 POLL_WRITE 是否可写 POLL_ERROR 是否错误状态
+     * @param _timeout 超时时间，等到这么久（单位秒）后才判断返回
+     * 
+     * @return int 成功 存在几个是events状态，失败 -1
+     */
+    int Poll(int index, short int events, int _timeout)
+    {
+        struct pollfd*  _fds = new (std::nothrow) struct pollfd; // poll函数需要的关于文件描述符的结构体 
+        
+        if (_fds == NULL)
+        {
+            printf("内存不够啦\n");
+            return -1;
+        }
+        
+        _fds->fd = fds[index];
+        _fds->events = events;
+        _fds->revents = 0;
+        int for_return = poll(_fds, 1, _timeout);
+
+        delete[] _fds;
+        return for_return;
+    }
+
+
+
     /**
      * @brief 判断文件流当前状态，返回当前所有文件流里面是否有想要的状态
      * 
@@ -156,35 +187,6 @@ class CFd
         delete[] _fds;
         return for_return;
         
-    }
-
-
-    /**
-     * @brief 判断文件流当前状态，返回当前所选文件流里面是否有想要的状态
-     * 
-     * @param index 按照index选择类里面的文件标识符来判断
-     * @param events POLL_READ 是否可读 POLL_WRITE 是否可写 POLL_ERROR 是否错误状态
-     * @param _timeout 超时时间，等到这么久（单位秒）后才判断返回
-     * 
-     * @return int 成功 存在几个是events状态，失败 -1
-     */
-    int Poll(int index, short int events, int _timeout)
-    {
-        struct pollfd*  _fds = new (std::nothrow) struct pollfd; // poll函数需要的关于文件描述符的结构体 
-        
-        if (_fds == NULL)
-        {
-            printf("内存不够啦\n");
-            return -1;
-        }
-        
-        _fds->fd = fds[index];
-        _fds->events = events;
-        _fds->revents = 0;
-        int for_return = poll(_fds, 1, _timeout);
-
-        delete[] _fds;
-        return for_return;
     }
 
 

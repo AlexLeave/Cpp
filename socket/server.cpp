@@ -58,9 +58,17 @@ int thread_main()
         return -1;
     }
 
-    while(client_socket->Recv() >= 0 && client_socket->IsConnect())
+    while(client_socket->IsConnect())
     {
-        printf("recv: %s\n", client_socket->Buf());
+        if(fds->Poll(fds->Find(_socket), POLL_READ, 0))
+        {
+            client_socket->Recv();
+            printf("recv: %s\n", client_socket->Buf());
+        }
+        else
+            printf("unblock no recv\n");
+
+        sleep(3);
     }
     client_socket->Close();
     printf("thread exit\n");
