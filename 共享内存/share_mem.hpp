@@ -51,7 +51,7 @@ class CShmem
 
     public:
     /**
-     * @brief 创建一块共享内存，默认1k大小
+     * @brief 创建一块共享内存，默认1k大小，如果有相同key共享内存已创建则返回它
      * 
      * @param Key 共享内存键值，默认 0x5005，请使用十六进制
      * @param Size 共享内存大小
@@ -80,6 +80,11 @@ class CShmem
         return authority;
     }
 
+    /**
+     * @brief 共享内存首地址指针
+     * 
+     * @return void* 
+     */
     void* get_p()
     {
         return p;

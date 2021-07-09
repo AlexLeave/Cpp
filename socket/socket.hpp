@@ -14,12 +14,15 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/socket.h>
-#include <string.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/types.h> 
 #include <string>
+#include <cstring>
+
+#include "poll.hpp"
 
 
 /**
@@ -30,7 +33,10 @@
 class CSocket{
     private:
     int _socket;
-    char buf[5*1024];
+    char buf[5*1024]; // 测试接收web页面专用大小
+    struct sockaddr_in clntAddr; //结构体，存放客户端socket信息
+    int _socket_client; // 保存服务端监听到的客户端socket
+    std::string _type = "tcp";
 
 
     public:
@@ -41,6 +47,7 @@ class CSocket{
      */
     CSocket(std::string type = "tcp")
     {
+        _type = type;
         if (type == "udp")
         {
             _socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -52,7 +59,8 @@ class CSocket{
         memset(buf, 0, sizeof(buf));
     }
 
-    int get_socket(){
+    int get_socket()
+    {
         return _socket;
     }
 
@@ -97,35 +105,40 @@ class CSocket{
      */
     int server_listen()
     {
-        return listen(_socket, 10);
+        return listen(_socket, 20);
         
     }
 
     /**
      * @brief 阻塞等待客户端连接
      * 
-     * @return int 同 accept 函数
+     * @return int 返回客户端socket
      */
     int server_accept()
     {
-        struct sockaddr_in clntAddr; //结构体，存放客户端socket信息
         socklen_t clntAddrSize = sizeof(clntAddr); // 结构体大小
-        int clntSocket = 0; //客户端socket
 
-        return clntSocket = accept(_socket, (struct sockaddr*)&clntAddr, &clntAddrSize);
+        // inet_ntoa(clntAddr.sin_addr); // 客户端ip
+        
+        // printf("客户端（%s）已连接。\n",inet_ntoa(clntAddr.sin_addr));
+
+        return _socket_client = accept(_socket, (struct sockaddr*)&clntAddr, &clntAddrSize);
         
     }
 
     /**
-     * @brief 直接初始化服务端socket
+     * @brief 直接初始化服务端socket，直接就可以让socket发送和接收了
      * 
      * @param port 监听的端口号
      */
-    void server_init(int port)
+    bool server_init(int port)
     {
-        server_bind(port);
-        server_listen();
-        server_accept();
+        if (server_bind(port) == 0 && server_listen() == 0)
+        {
+            // socket监听成功
+            if(server_accept() >= 0) return true;
+        }
+        return false;
     }
 
 
@@ -136,14 +149,13 @@ class CSocket{
      */
     char* server_recv()
     {
-        try
+        
+        clear_buf();
+        if (recv(_socket_client, buf, sizeof(buf), 0) < 0)
         {
-            recv(_socket, buf, sizeof(buf), 0);
+            perror("recv错误：\n");
         }
-        catch(const std::exception& e)
-        {
-            std::cerr << e.what() << '\n';
-        }
+        // printf("%s", buf);
         return buf;
     }
 
@@ -155,9 +167,27 @@ class CSocket{
      */
     int server_send(char* buffer)
     {
-        return send(_socket, buffer, strlen(buf), 0);
+        return send(_socket_client, buffer, strlen(buf), 0);
         
     }
+
+    /**
+     * @brief 查看 socket 是否还连接着
+     * 
+     * @return true 未断开
+     * @return false 已断开
+     */
+    bool is_connect_server()
+    {
+        struct tcp_info info; 
+        int len=sizeof(info); 
+        if (getsockopt(_socket_client, IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len) < 0) 
+            return false;
+        if(info.tcpi_state == TCP_ESTABLISHED) return true;
+        else return false;
+    }
+
+
 
 //---------------------------------------------
 
@@ -192,33 +222,55 @@ class CSocket{
      */
     int client_send(char *buffer)
     {
-        return send(_socket, buffer, strlen(buffer), 0);
+        int ret = send(_socket, buffer, strlen(buffer), 0);
+        if(ret == -1)
+        {
+            std::cerr << "socket发送错误\n";
+        }
+        return ret;
         
     }
 
     /**
      * @brief 接收服务器消息
      * 
-     * @return char* 接收的消息，最大5KB字符
+     * @return int 接收的字符串数量
      */
-    char* client_recv()
+    int client_recv()
     {
-        try
+        clear_buf();
+        int bytes = recv(_socket, buf, sizeof(buf), 0);
+        if ( bytes < 0)
         {
-            recv(_socket, buf, sizeof(buf), 0);
+            perror("接收recv函数错误：\n");
         }
-        catch(const std::exception& e)
+        else if ( bytes == 0 )
         {
-            std::cerr << e.what() << '\n';
+            if (is_connect_client()) printf("断开了连接\n");
         }
-        return buf;
+        return bytes;
+    }
+
+    /**
+     * @brief 查看 socket 是否还连接着
+     * 
+     * @return true 未断开
+     * @return false 已断开
+     */
+    bool is_connect_client()
+    {
+        struct tcp_info info; 
+        int len=sizeof(info); 
+        getsockopt(_socket, IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len);
+        if(info.tcpi_state == TCP_ESTABLISHED) return true;
+        else return false;
     }
     
 
 //---------------------------------------------
 
     /**
-     * @brief 使用 close 函数关闭 socket
+     * @brief 作为服务端关闭用于监听的socket，作为客户端关闭与服务端的连接
      * 
      * @return int 同 close 函数
      */
@@ -226,6 +278,18 @@ class CSocket{
     {
         return close(_socket);
     }
+
+    /**
+     * @brief 服务端关闭和客户端连接的socket
+     * 
+     * @return int 使用 close函数 返回
+     */
+    int socket_close_server()
+    {
+        return close(_socket_client);
+    }
+
+
 
 
 };
