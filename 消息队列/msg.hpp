@@ -54,10 +54,10 @@ class CMsg
     }
 
     /**
-     * @brief 清空消息缓冲区
+     * @brief 清空消息缓冲区buf
      * 
      */
-    void clear_buf()
+    void Clear()
     {
         memset(&_buf, 0, sizeof(_buf));
     }
@@ -67,7 +67,7 @@ class CMsg
      * 
      * @return char* 
      */
-    char *get_buf()
+    char *Buf()
     {
         return _buf.mtext;
     }
@@ -77,7 +77,7 @@ class CMsg
      * 
      * @return int msgid
      */
-    int get_msgid()
+    int Msgid()
     {
         return _msg_id;
     }
@@ -90,9 +90,9 @@ class CMsg
      * @return true 发送成功
      * @return false 发送失败
      */
-    bool write(char *str)
+    bool Write(char *str)
     {
-        clear_buf();
+        Clear();
         _buf.mtype = _MY_MSG_TYPE;
         sprintf(_buf.mtext, "%s", str);
         if(msgsnd(_msg_id, &_buf, _MY_MSG_MAXLEN, 0) < 0) return false;
@@ -105,9 +105,9 @@ class CMsg
      * @return true 读取成功
      * @return false 读取失败
      */
-    bool read()
+    bool Read()
     {
-        clear_buf();
+        Clear();
         if(msgrcv(_msg_id, &_buf, _MY_MSG_MAXLEN, _MY_MSG_TYPE, 0)<0) return false;
         return true;
     }
@@ -118,7 +118,7 @@ class CMsg
      * @return true 删除成功
      * @return false 删除失败
      */
-    bool destory()
+    bool Destory()
     {
         if(msgctl(_msg_id, IPC_RMID, NULL) == 0) return true;
         return false;
