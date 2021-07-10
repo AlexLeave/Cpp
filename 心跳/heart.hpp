@@ -20,22 +20,22 @@
 
 class CHeart{
         private:
-        bool alive = true;
-        bool heart = true;
-        int T = 5; // 5s 一个周期
-        std::thread *beat_thread;
-        int id;
+        bool _alive = true;
+        bool _heart = true;
+        int _T = 5; // 5s 一个周期
+        std::thread *_BeatThread;
+        int _id;
 
         /**
          * @brief 检查心跳子线程，把时间轴按照周期 T 间隔，每个区间有心跳心脏就不会死
          * 
          */
-        static void check_beats(class CHeart *obj)
+        static void check_Beats(class CHeart *obj)
         {
             while(true)
             {
                 // std::cout << time(NULL) << std::endl;
-                sleep(obj->get_T()); // 每 T秒 检查是否在心跳
+                sleep(obj->T()); // 每 T秒 检查是否在心跳
                 // std::cout << time(NULL) << std::endl;
                 if(obj->get_heart() && obj->IsAlive()) 
                 { 
@@ -45,7 +45,7 @@ class CHeart{
                 else 
                 { 
                     obj->set_alive(false); 
-                    printf("no heart beat, died\n"); break; 
+                    printf("no heart Beat, died\n"); break; 
                 } // 没有心跳了
             }
         }
@@ -57,22 +57,22 @@ class CHeart{
          * @param obj 
          * @param others 
          */
-        static void check_beats_exact(class CHeart *obj, void * others = NULL)
+        static void check_Beats_exact(class CHeart *obj, void * others = NULL)
         {
             int cnt = 0; // 精确检测心跳线程函数的计数器
-            while(cnt < obj->get_T())
+            while(cnt < obj->T())
             {
                 sleep(1); // 每 1秒 检查是否在心跳
                 if(obj->get_heart() && obj->IsAlive()) 
                 {  // 这一秒在心跳，且心脏没有被杀死
                     cnt = 0; obj->heart_down(); // 计数器复位
                     obj->set_alive(true); 
-                    printf("heart beat keeping...\n"); 
+                    printf("heart Beat keeping...\n"); 
                 }
                 else if(!obj->get_heart() && obj->IsAlive()) 
                 { // 这一秒没有心跳，且心脏没有被杀死
                     cnt++;
-                    printf("heart no beat in 1 sec\n");
+                    printf("heart no Beat in 1 sec\n");
                 }
                 else // 心脏被杀死
                 {
@@ -92,15 +92,20 @@ class CHeart{
 
 
         // 给检测心跳线程操作私有变量的私有函数
-        bool get_heart() { return heart; }
-        bool heart_down() { heart = false; return !heart; }
-        bool heart_up() { heart = true; return heart; }
-        bool set_alive(bool Alive) { alive = Alive; return alive; }
+        bool get_heart() { return _heart; }
+        bool heart_down() { _heart = false; return !_heart; }
+        bool heart_up() { _heart = true; return _heart; }
+        bool set_alive(bool Alive) { _alive = Alive; return _alive; }
 
         public:
-        CHeart(int ID = 0)
+        /**
+         * @brief 创建一颗心脏，给它一个id
+         * 
+         * @param id 给它id
+         */
+        CHeart(int id = 0)
         {
-            id = ID;
+            _id = id;
         }
 
         /**
@@ -108,22 +113,22 @@ class CHeart{
          * 
          * @return int id号
          */
-        int get_id() { return id; }
+        int ID() { return _id; }
 
         /**
-         * @brief 设置这颗 heart 的ID，用户以此区分它们
+         * @brief 设置这颗 heart 的id，用户以此区分它们
          * 
-         * @param ID 设置成这个id
-         * @return int 设置成功返回输入的ID
+         * @param id 设置成这个id
+         * @return int 设置成功返回输入的id
          */
-        int set_id(int ID) {id = ID; return id; }
+        int SetID(int id) {_id = id; return _id; }
 
         /**
          * @brief 返回监测心跳函数子线程指针
          * 
          * @return std::thread* 
          */
-        std::thread *beat_thread(){ return beat_thread; }
+        std::thread *BeatThread(){ return _BeatThread; }
 
         /**
          * @brief 返回是否需要判断的物体存活
@@ -131,7 +136,7 @@ class CHeart{
          * @return true 存活
          * @return false 挂掉
          */
-        bool IsAlive() { return alive; }
+        bool IsAlive() { return _alive; }
 
         /**
          * @brief 保持心跳，调用一次相当于心跳一次
@@ -139,14 +144,14 @@ class CHeart{
          * @return true 保持成功
          * @return false 保持失败
          */
-        bool beat() { heart = true; return heart; }
+        bool Beat() { _heart = true; return _heart; }
 
         /**
          * @brief 查看物体心跳间隔时间
          * 
          * @return int 物体心跳间隔时间
          */
-        int get_T() { return T; } 
+        int T() { return _T; } 
 
         /**
          * @brief 设置物体心跳间隔时间
@@ -154,7 +159,7 @@ class CHeart{
          * @param t 需要把心跳间隔时间设置成t秒
          * @return int 变化后的心跳间隔时间T
          */
-        int set_T(int t) { T = t; return T;}
+        int SetT(int t) { _T = t; return _T;}
 
 
         /**
@@ -165,12 +170,12 @@ class CHeart{
          * 
          * @return std::thread* 成功返回心跳子线程，失败返回 NULL
          */
-        std::thread * init(int t = 5, void * others = NULL)
+        std::thread * Init(int t = 5, void * others = NULL)
         {
-            set_T(t);
-            if(alive) beat_thread = new (std::nothrow) std::thread(check_beats_exact, this, others);
+            SetT(t);
+            if(_alive) _BeatThread = new (std::nothrow) std::thread(check_Beats_exact, this, others);
 
-            return beat_thread;
+            return _BeatThread;
         }
 
         /**
@@ -179,10 +184,10 @@ class CHeart{
          * @return true 杀死成功
          * @return false 杀死失败
          */
-        bool heart_kill()
+        bool Kill()
         {
-            alive = false;
-            return !heart;
+            _alive = false;
+            return !_alive;
         }
         
 

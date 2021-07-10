@@ -36,7 +36,7 @@ class CSem
     private:
     int semid;
     key_t key;
-    int Authority; // 信号的权限，默认所有用户可读可写
+    int _Authority; // 信号的权限，默认所有用户可读可写
 
 
     /**
@@ -44,12 +44,12 @@ class CSem
      * 
      * @param bool 是否创建和初始化成功
      */
-    bool init_sem()
+    bool Init()
     {
         // 不存在，创建
-        if ( (semid = semget(key, 1, Authority)) == -1 && errno == ENOENT)
+        if ( (semid = semget(key, 1, _Authority)) == -1 && errno == ENOENT)
         {        
-            if ( (semid = semget(key, 1, IPC_CREAT|Authority)) == -1)
+            if ( (semid = semget(key, 1, IPC_CREAT|_Authority)) == -1)
             {
                 perror("erro:");
                 return false;
@@ -82,22 +82,22 @@ class CSem
     CSem(key_t Key = 0x10086, int authority = 0640)
     {
         key = Key;
-        Authority = authority;
-        if(init_sem() == false)
+        _Authority = authority;
+        if(Init() == false)
         {
             printf("信号创建失败\n");
         }
     }
 
 
-    int get_semid()
+    int Semid()
     {
         return semid;
     }
     
-    int get_Authority()
+    int Authority()
     {
-        return Authority;
+        return _Authority;
     }
 
 
@@ -106,7 +106,7 @@ class CSem
      * 
      * @return int 使用函数 semop 上锁的返回值
      */
-    int lock_sem()
+    int Lock()
     {
         struct sembuf sem_b;
         sem_b.sem_num = 0;
@@ -120,7 +120,7 @@ class CSem
      * 
      * @return int 使用函数 semop 解锁的返回值
      */
-    int unlock_sem()
+    int UnLock()
     {
         struct sembuf sem_b;
         sem_b.sem_num = 0;
@@ -134,7 +134,7 @@ class CSem
      * 
      * @return int 使用 semctl 函数删除信号的返回值
      */
-    int delete_sem()
+    int Destory()
     {
         return semctl(semid, 0, IPC_RMID);
     }

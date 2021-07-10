@@ -41,14 +41,20 @@ class CFd
 
     public:
     /**
-     * @brief 创建文件描述符管理类
+     * @brief 创建文件描述符管理类，创建失败调用 Len() 返回 -1
      * 
      * @param max_len 你需要管理文件描述符的最大数量
      */
     CFd(int max_len)
     {
-        fds = new int[max_len];
+        fds = new (std::nothrow) int[max_len];
         _max_len = max_len;
+        if (fds == NULL)
+        {
+            _max_len = 0;
+            _len = -1;
+        }
+        
     }
 
     /**
@@ -127,37 +133,6 @@ class CFd
 
 
 
-
-    /**
-     * @brief 判断文件流当前状态，返回当前所选文件流里面是否有想要的状态
-     * 
-     * @param index 按照index选择类里面的文件标识符来判断
-     * @param events POLL_READ 是否可读 POLL_WRITE 是否可写 POLL_ERROR 是否错误状态
-     * @param _timeout 超时时间，等到这么久（单位秒）后才判断返回
-     * 
-     * @return int 成功 存在几个是events状态，失败 -1
-     */
-    int Poll(int index, short int events, int _timeout)
-    {
-        struct pollfd*  _fds = new (std::nothrow) struct pollfd; // poll函数需要的关于文件描述符的结构体 
-        
-        if (_fds == NULL)
-        {
-            printf("内存不够啦\n");
-            return -1;
-        }
-        
-        _fds->fd = fds[index];
-        _fds->events = events;
-        _fds->revents = 0;
-        int for_return = poll(_fds, 1, _timeout);
-
-        delete[] _fds;
-        return for_return;
-    }
-
-
-
     /**
      * @brief 判断文件流当前状态，返回当前所有文件流里面是否有想要的状态
      * 
@@ -187,6 +162,57 @@ class CFd
         delete[] _fds;
         return for_return;
         
+    }
+
+
+    /**
+     * @brief 判断文件流当前状态，返回当前所选文件流里面是否有想要的状态
+     * 
+     * @param index 按照index选择类里面的文件标识符来判断
+     * @param events POLL_READ 是否可读 POLL_WRITE 是否可写 POLL_ERROR 是否错误状态
+     * @param _timeout 超时时间，等到这么久（单位秒）后才判断返回，-1表示永久等待
+     * 
+     * @return true 返回事件与请求事件一致
+     * @return false 返回事件与请求事件不一致
+     */
+    bool Poll(int index, short int events, int _timeout)
+    {
+        struct pollfd*  _fds = new (std::nothrow) struct pollfd; // poll函数需要的关于文件描述符的结构体 
+        
+        if (_fds == NULL)
+        {
+            printf("内存不够啦\n");
+            return -1;
+        }
+        
+        _fds->fd = fds[index];
+        _fds->events = events;
+        _fds->revents = 0;
+        bool for_return;
+        if(poll(_fds, 1, _timeout) == 1 && _fds->revents == events) // poll返回的事件和请求事件一致
+            for_return = true;
+        else
+            for_return = false;
+
+        delete[] _fds;
+        return for_return;
+    }
+
+
+    /**
+     * @brief 找一找文件流里面谁可以触发events事件
+     * 
+     * @param events POLL_READ 可读 POLL_WRITE 可写 POLL_ERROR 错误状态
+     * @return int 存在 返回一个可以触发事件的文件标识符的index，不存在 返回-1
+     */
+    int Who(short int events)
+    {
+        for(int i = 0; i < Len(); i++)
+        {
+            if (Poll(i, events, 0))
+                return i;
+        }
+        return -1;
     }
 
 

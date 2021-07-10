@@ -65,13 +65,16 @@ int thread_main()
 
     while(client_socket->IsConnect())
     {
-        if(fds->Poll(fds->Find(_socket), POLL_READ, 0))
-        {
-            client_socket->Recv();
-            printf("recv: %s\n", client_socket->Buf());
-        }
-        else
-            printf("unblock no recv\n");
+        // if(fds->Poll(fds->Find(_socket), POLL_READ, 0))
+        // {
+        //     client_socket->Recv();
+        //     printf("recv: %s\n", client_socket->Buf());
+        // }
+        // else
+        //     printf("unblock no recv\n");
+        std::cout << "POLL_WRITE:" << fds->Poll(POLL_WRITE, 0) << std::endl;
+        std::cout << "POLL_READ:" << fds->Poll(POLL_READ, 0) << std::endl;
+        std::cout << "POLL_ERROR:" << fds->Poll(POLL_ERROR, 0) << std::endl;
 
         sleep(3);
     }

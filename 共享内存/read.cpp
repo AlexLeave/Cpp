@@ -9,8 +9,9 @@ int main(int argc, char const *argv[])
 
 
     // mem->erase_shmem();
-    printf("%s", (char *)mem->get_p());
-    mem->delete_shmem();
+    printf("%s", (char *)mem->Ptr());
+    mem->Depart();
+    mem->Destory();
 
     return 0;
 }

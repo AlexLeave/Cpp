@@ -22,24 +22,24 @@
 class CShmem
 {
     private:
-    int shmid; // 共享内存id
-    key_t key; // 共享内存键值
-    size_t size; // 共享内存大小
-    int authority; // 共享内存权限
+    int _shmid; // 共享内存id
+    key_t _key; // 共享内存键值
+    size_t _size; // 共享内存大小
+    int _authority; // 共享内存权限
     void *p; // 指向共享内存第一个地址的指针
 
-    bool init_shmem()
+    bool Init()
     {
         // 创建共享内存
-        shmid = shmget(key, size, authority|IPC_CREAT);
-        if(shmid == -1) // 创建失败
+        _shmid = shmget(_key, _size, _authority|IPC_CREAT);
+        if(_shmid == -1) // 创建失败
         {
             perror("共享内存创建失败:");
             p = NULL;
             return false;
         }
         // 连接共享内存到当前进程地址空间
-        p = shmat(shmid, 0, 0);
+        p = shmat(_shmid, 0, 0);
         if(p == (void *) -1) // 连接失败
         {
             perror("共享内存连接到当前进程地址空间失败:");
@@ -53,41 +53,41 @@ class CShmem
 
     public:
     /**
-     * @brief 创建一块共享内存，默认1k大小，如果有相同key共享内存已创建则返回它，创建失败共享内存指针为 NULL
+     * @brief 创建一块共享内存，默认1k大小，如果有相同_key共享内存已创建则返回它，创建失败共享内存指针为 NULL
      * 
-     * @param Key 共享内存键值，默认 0x5005，请使用十六进制
-     * @param Size 共享内存大小
-     * @param Authority 共享内存权限，默认0640，请使用八进制
+     * @param key 共享内存键值，默认 0x5005，请使用十六进制
+     * @param size 共享内存大小
+     * @param authority 共享内存权限，默认0640，请使用八进制
      */
-    CShmem(key_t Key = 0x5005, size_t Size = 1024, int Authority = 0640) // 默认创建 1k 大小共享内存
+    CShmem(key_t key = 0x5005, size_t size = 1024, int authority = 0640) // 默认创建 1k 大小共享内存
     {
-        key = Key;
-        size = Size;
-        authority = Authority;
-        init_shmem();
+        _key = key;
+        _size = size;
+        _authority = authority;
+        Init();
     }
 
-    int get_shmid()/* code */
+    int Shmid()
     {
-        return key;
+        return _shmid;
     }
 
-    size_t get_size()
+    size_t Size()
     {
-        return size;
+        return _size;
     }
 
-    int get_authority()
+    int Authority()
     {
-        return authority;
+        return _authority;
     }
 
     /**
-     * @brief 共享内存首地址指针
+     * @brief 返回共享内存首地址指针
      * 
-     * @return void* 
+     * @return void* 共享内存首地址指针
      */
-    void* get_p()
+    void* Ptr()
     {
         return p;
     }
@@ -95,11 +95,11 @@ class CShmem
     /**
      * @brief 擦除共享内存内容
      * 
-     * @return void* 返回共享内存首地址
+     * @return void* 
      */
-    void* erase_shmem()
+    void* Erase()
     {
-        return memset(p, 0, size);
+        return memset(p, 0, _size);
     }
 
 
@@ -109,7 +109,7 @@ class CShmem
      * @return true 分离成功
      * @return false 分离失败
      */
-    bool depart_shmem()
+    bool Depart()
     {
         if (shmdt(p) == -1) // 分离共享内存
         {
@@ -124,9 +124,9 @@ class CShmem
      * @return true 删除成功
      * @return false 删除失败
      */
-    bool delete_shmem()
+    bool Destory()
     {
-        if (shmctl(shmid, IPC_RMID, 0) == -1) // 删除共享内存
+        if (shmctl(_shmid, IPC_RMID, 0) == -1) // 删除共享内存
         {
             return false;
         }

@@ -8,10 +8,10 @@ int main(int argc, char const *argv[])
     class CShmem *mem = new CShmem();
     char p[10];
 
-    mem->erase_shmem();
+    mem->Erase();
     cin >> p;
-    sprintf((char*)mem->get_p(), "%s\n", p);
-    printf("%s", (char *)mem->get_p());
+    sprintf((char*)mem->Ptr(), "%s\n", p);
+    printf("%s", (char *)mem->Ptr());
 
     return 0;
 }
