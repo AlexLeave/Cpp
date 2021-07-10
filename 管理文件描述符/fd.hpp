@@ -41,14 +41,20 @@ class CFd
 
     public:
     /**
-     * @brief 创建文件描述符管理类
+     * @brief 创建文件描述符管理类，创建失败调用 Len() 返回 -1
      * 
      * @param max_len 你需要管理文件描述符的最大数量
      */
     CFd(int max_len)
     {
-        fds = new int[max_len];
+        fds = new (std::nothrow) int[max_len];
         _max_len = max_len;
+        if (fds == NULL)
+        {
+            _max_len = 0;
+            _len = -1;
+        }
+        
     }
 
     /**

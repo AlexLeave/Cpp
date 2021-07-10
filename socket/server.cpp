@@ -17,12 +17,17 @@
 int thread_main();
 
 
-class CFd *fds = new CFd(5);
+class CFd *fds = new (std::nothrow) CFd(5);
 class CSocket *server_socket = new CSocket("tcp");
 
 int main(int argc, char const *argv[])
 {
-    
+    if(fds == NULL || fds->Len() == -1 )
+    {
+        printf("内存不足\n");
+        server_socket->Close();
+        return -1;
+    }
 
     server_socket->Bind(1010);
     server_socket->Listen();

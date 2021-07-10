@@ -163,12 +163,12 @@ class CHeart{
          * @param t 需要把心跳间隔时间设置成t秒 
          * @param others 其它你想要传递给心跳监测函数的东西都可以放在这里，然后自己添加内容
          * 
-         * @return std::thread* 返回心跳子线程
+         * @return std::thread* 成功返回心跳子线程，失败返回 NULL
          */
         std::thread * init(int t = 5, void * others = NULL)
         {
             set_T(t);
-            if(alive) beat_thread = new std::thread(check_beats_exact, this, others);
+            if(alive) beat_thread = new (std::nothrow) std::thread(check_beats_exact, this, others);
 
             return beat_thread;
         }

@@ -35,6 +35,7 @@ class CShmem
         if(shmid == -1) // 创建失败
         {
             perror("共享内存创建失败:");
+            p = NULL;
             return false;
         }
         // 连接共享内存到当前进程地址空间
@@ -42,6 +43,7 @@ class CShmem
         if(p == (void *) -1) // 连接失败
         {
             perror("共享内存连接到当前进程地址空间失败:");
+            p = NULL;
             return false;
         }
 
@@ -51,7 +53,7 @@ class CShmem
 
     public:
     /**
-     * @brief 创建一块共享内存，默认1k大小，如果有相同key共享内存已创建则返回它
+     * @brief 创建一块共享内存，默认1k大小，如果有相同key共享内存已创建则返回它，创建失败共享内存指针为 NULL
      * 
      * @param Key 共享内存键值，默认 0x5005，请使用十六进制
      * @param Size 共享内存大小
