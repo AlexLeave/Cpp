@@ -132,6 +132,17 @@ class CFd
     int Len(){ return _len; }
 
 
+    /**
+     * @brief 传入index，返回文件描述符
+     * 
+     * @param index index
+     * @return int 文件描述符
+     */
+    int Fd(int index)
+    {
+        return fds[index];
+    }
+
 
     /**
      * @brief 判断文件流当前状态，返回当前所有文件流里面是否有想要的状态

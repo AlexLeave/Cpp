@@ -132,6 +132,18 @@ class CFd
     int Len(){ return _len; }
 
 
+    /**
+     * @brief 传入index，返回文件描述符
+     * 
+     * @param index index
+     * @return int 文件描述符，若index<0，返回-1
+     */
+    int Fd(int index)
+    {
+        if(index < 0) return -1;
+        else return fds[index];
+    }
+
 
     /**
      * @brief 判断文件流当前状态，返回当前所有文件流里面是否有想要的状态
@@ -189,12 +201,12 @@ class CFd
         _fds->events = events;
         _fds->revents = 0;
         bool for_return;
-        if(poll(_fds, 1, _timeout) == 1 && _fds->revents == events) // poll返回的事件和请求事件一致
+        if(poll(_fds, 1, _timeout) == 1) // poll返回的事件和请求事件一致
             for_return = true;
         else
             for_return = false;
 
-        delete[] _fds;
+        delete _fds;
         return for_return;
     }
 
@@ -213,6 +225,19 @@ class CFd
                 return i;
         }
         return -1;
+    }
+
+
+
+    /**
+     * @brief 请在不需要管理的时候调用此函数，保证内存被释放
+     * 
+     */
+    void Destory()
+    {
+        _max_len = 0;
+        _len = 0;
+        delete[] fds;
     }
 
 

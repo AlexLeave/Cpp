@@ -23,7 +23,7 @@ class CHeart{
         bool _alive = true;
         bool _heart = true;
         int _T = 5; // 5s 一个周期
-        std::thread *_BeatThread;
+        std::thread *_BeatThread = NULL;
         int _id;
 
         /**
@@ -81,10 +81,12 @@ class CHeart{
                 }
             }
             // 出循环代表心脏已死，或心跳已经无法维持心脏
-            if(obj->IsAlive()) printf("heart weak, heart is dying\n");
+            if(obj->IsAlive()) 
+                printf("heart weak, heart is dying\n");
 
 
             obj->set_alive(false);
+            // obj->Destory();
 
             printf("heart died\n");
         }
@@ -190,9 +192,19 @@ class CHeart{
             return !_alive;
         }
         
+        /**
+         * @brief 清理函数，等待心跳线程退出后清理此对象
+         * 
+         */
+        void Destory()
+        {
+            _BeatThread->join();
+            if(_BeatThread != NULL)
+                delete _BeatThread;
+        }
 
 
-    };
+};
 
 
 #endif

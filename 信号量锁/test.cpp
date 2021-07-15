@@ -21,10 +21,10 @@ int main(int argc, char const *argv[])
 {
     class CSem *sem = new CSem(0x1001);
 
+    cout << getpid() << endl;
     sem->Lock();
     cout << "使用中" << endl;
 
-    sleep(5);
 
     sem->UnLock();
     cout << "用完了\n";
