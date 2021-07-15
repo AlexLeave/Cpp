@@ -233,7 +233,7 @@ class CFd
      * @brief 请在不需要管理的时候调用此函数，保证内存被释放
      * 
      */
-    void Destory()
+    void Destroy()
     {
         _max_len = 0;
         _len = 0;

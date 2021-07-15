@@ -196,7 +196,7 @@ class CHeart{
          * @brief 清理函数，等待心跳线程退出后清理此对象
          * 
          */
-        void Destory()
+        void Destroy()
         {
             _BeatThread->join();
             if(_BeatThread != NULL)
