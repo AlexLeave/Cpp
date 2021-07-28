@@ -3,6 +3,7 @@
  * @author csu-lf (csu.lifeng@qq.com)
  * @brief 封装了常用的网络编程的socket成CSocket类，请愉快的使用吧
  * 0.2 版本更改了类部分结构，让它更加适合多线程编程
+ * 1.1 版本udp使用更加友好，添加RecvFrom等实用函数
  * 
  * @version 1.1
  * @date 2021-07-02

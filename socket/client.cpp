@@ -14,9 +14,10 @@
 
 int main(int argc, char const *argv[])
 {
-    class CSocket *socket = new CSocket("udp");
+    class CSocket *socket = new CSocket("tcp");
 
-    if (socket->Connect("127.0.0.1", 1010) == -1) return -1;
+    socket->Bind(40001);
+    if (socket->Connect("127.0.0.1", 40005) == -1) return -1;
 
     std::string str;
 
