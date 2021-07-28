@@ -14,7 +14,7 @@
 
 int main(int argc, char const *argv[])
 {
-    class CSocket *socket = new CSocket("tcp");
+    class CSocket *socket = new CSocket("udp");
 
     if (socket->Connect("127.0.0.1", 1010) == -1) return -1;
 

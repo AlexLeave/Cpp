@@ -32,9 +32,14 @@
  */
 class CSocket{
     private:
+    // socket文件描述符
     int _socket;
-    char buf[5*1024]; // 测试接收web页面专用大小
-    struct sockaddr_in clntAddr; //结构体，存放客户端socket信息
+    // 测试接收web页面专用大小5k大小buf
+    char buf[5*1024]; 
+    // 结构体，存放客户端socket信息。对于udp服务端这是会变化的
+    // 对于Accpect后存放的是tcp连接客户端。对于RecvFrom后存放的是会话远端
+    struct sockaddr_in clntAddr; 
+    // socket类型，若是托管socket且用户没有规定，默认视为tcp
     std::string _type = "tcp";
 
 
@@ -69,6 +74,18 @@ class CSocket{
     }
 
     /**
+     * @brief 把一个 socket 交给 CSocket类 来管理
+     * 
+     * @param socket 交给我的socket
+     * @param type socket类型
+     */
+    CSocket(int socket, std::string type)
+    {
+        _socket = socket;
+        _type = type;
+    }
+
+    /**
      * @brief 返回 socket 文件描述符
      * 
      * @return int 
@@ -78,9 +95,24 @@ class CSocket{
         return _socket;
     }
 
+    /**
+     * @brief 返回接收缓冲区
+     * 
+     * @return char* buf缓冲区
+     */
     char * Buf()
     {
         return buf;
+    }
+
+    /**
+     * @brief 返回socket类型，如果是交个我托管时候没有设置，请不要相信我的返回值
+     * 
+     * @return std::string 类型，不是“tcp”就是“udp”
+     */
+    std::string Type()
+    {
+        return _type;
     }
 
     /**
@@ -115,16 +147,28 @@ class CSocket{
     /**
      * @brief 作为服务端第二步，设置成监听模式
      * 
-     * @return int 同 listen 函数
+     * @return int 同 listen 函数，成功 0，失败 -1
      */
     int Listen()
     {
         return listen(_socket, 20);
-        
     }
 
     /**
-     * @brief 阻塞等待客户端连接，这会产生一个和客户端连接的新的socket，请你保存好 
+     * @brief 作为服务端第二步，设置成监听模式
+     * 
+     * @param num num个请求可以等待连接
+     * 
+     * @return int 同 listen 函数，成功 0，失败 -1
+     */
+    int Listen(int num)
+    {
+        return listen(_socket, num);
+    }
+
+
+    /**
+     * @brief udp不需要此函数直接Recv！阻塞等待tcp客户端连接，这会产生一个和客户端连接的新的socket，请你保存好 
      * 你也可以使用 new CSocket(返回的int) 来把这个socket交给我的其它对象管理
      * 
      * @return int 返回客户端socket
@@ -142,11 +186,11 @@ class CSocket{
     }
 
     /**
-     * @brief 直接初始化作为服务端socket，直接等待客户端连接
+     * @brief 直接初始化作为tcp服务端socket，直接等待客户端连接
      * 
      * @param port 监听的端口号
      * 
-     * @return int 连接到客户端的socket
+     * @return int 连接到客户端的socket。Bind或Listen失败则返回-1，未考虑Accept失败
      */
     int S_Init(int port)
     {
@@ -217,7 +261,7 @@ class CSocket{
         int bytes = recv(_socket, buf, sizeof(buf), 0);
         if ( bytes < 0)
         {
-            perror("接收recv函数错误：\n");
+            perror("接收recv函数错误");
         }
         else if ( bytes == 0 )
         {
@@ -225,6 +269,38 @@ class CSocket{
         }
         return bytes;
     }
+
+
+    /**
+     * @brief 同 Recv，只是返回的是连接客户端信息。
+     * 可以使用：inet_ntoa(函数返回->sin_addr) 获取连接地址字符串
+     * 
+     * @return struct sockaddr_in* 连接的地址，如果接收到0bytes或者运行错误返回NULL
+     */
+    struct sockaddr_in* RecvFrom()
+    {
+        ClearBuf();
+
+        memset(&clntAddr, 0, sizeof(clntAddr));
+        socklen_t clntAddrLen = sizeof(clntAddr);
+
+        int bytes = recvfrom(_socket, buf, sizeof(buf), 0, (struct sockaddr *)&clntAddr, &clntAddrLen);
+        // 判断接收
+        if ( bytes < 0 )
+        {
+            perror("接收recv函数错误");
+            return NULL;
+        }
+        else if ( bytes == 0 )
+        {
+            if (IsConnect()) printf("断开了连接\n");
+            return NULL;
+        }
+
+        return &clntAddr;
+    }
+
+
 
     /**
      * @brief 查看 socket 是否还连接着

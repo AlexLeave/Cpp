@@ -18,7 +18,7 @@ int thread_main();
 
 
 class CFd *fds = new (std::nothrow) CFd(5);
-class CSocket *server_socket = new CSocket("tcp");
+class CSocket *server_socket = new CSocket("udp");
 
 int main(int argc, char const *argv[])
 {
@@ -32,9 +32,18 @@ int main(int argc, char const *argv[])
     server_socket->Bind(1010);
     server_socket->Listen();
 
-    std::thread *my_thread = new std::thread(thread_main);
-    my_thread->detach();
-    while(1);
+    // std::thread *my_thread = new std::thread(thread_main);
+    // my_thread->detach();
+    // while(1);
+
+    while(1)
+    {
+        sockaddr_in* clnt = server_socket->RecvFrom();
+        printf("from %s recv:%s\n", inet_ntoa(clnt->sin_addr), server_socket->Buf());
+    }
+    
+    
+
 
     server_socket->Close();
 
@@ -49,10 +58,16 @@ int thread_main()
         a[i] = i;
     }
     printf("new thread\n");
-    int _socket = server_socket->Accept();
+    int _socket;
+    do
+    {
+        _socket = server_socket->Accept();
+    }while(_socket < 0);
+    
+    sleep(1);
     fds->Add(_socket);
     class CSocket *client_socket = new CSocket(_socket);
-    printf("link\n");
+    printf("socket_'%d' link\n", _socket);
     std::thread *my_thread_child = new std::thread(thread_main);
     my_thread_child->detach();
     if(client_socket->Socket() < 0)
