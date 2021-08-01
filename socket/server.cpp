@@ -35,6 +35,7 @@ int main(int argc, char const *argv[])
     // std::thread *my_thread = new std::thread(thread_main);
     // my_thread->detach();
     // while(1);
+
     class CSocket* connect_socket = new CSocket(server_socket->Accept());
     while(1)
     {
@@ -43,11 +44,11 @@ int main(int argc, char const *argv[])
         printf("from %s recv:%s\n", inet_ntoa(clnt->sin_addr), connect_socket->Buf());
     }
 
-    // while(1)
-    // {
-    //     sockaddr_in* clnt = server_socket->RecvFrom();
-    //     printf("from %s recv:%s\n", inet_ntoa(clnt->sin_addr), server_socket->Buf());
-    // }
+    //while(1)
+    //{
+    //    sockaddr_in* clnt = server_socket->RecvFrom();
+    //    printf("from %s recv:%s\n", inet_ntoa(clnt->sin_addr), server_socket->Buf());
+    //}
     
     
 

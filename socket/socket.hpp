@@ -24,6 +24,8 @@
 #include <sys/types.h> 
 #include <string>
 #include <cstring>
+#include <stdarg.h>
+
 
 
 /**
@@ -71,7 +73,10 @@ class CSocket{
      */
     CSocket(int socket)
     {
-        _socket = socket;
+        if (socket > 1)
+            _socket = socket;
+        else 
+            printf("err: socket fd < 2\n");
     }
 
     /**
@@ -106,6 +111,12 @@ class CSocket{
         return buf;
     }
 
+    int BufSize()
+    {
+        return sizeof(buf);
+    }
+
+
     /**
      * @brief 返回socket类型，如果是交个我托管时候没有设置，请不要相信我的返回值
      * 
@@ -124,8 +135,7 @@ class CSocket{
     {
         memset(buf, 0, sizeof(buf));
     }
-//--------------------------------------------
-// 服务端专用函数
+
 
     /**
      * @brief 作为服务端第一步，绑定本机端口，默认监听所有网卡（0.0.0.0）
@@ -144,6 +154,9 @@ class CSocket{
 
         return bind(_socket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));        
     }
+    
+//--------------------------------------------
+// 服务端专用函数
 
     /**
      * @brief 作为服务端第二步，设置成监听模式
@@ -237,8 +250,8 @@ class CSocket{
     /**
      * @brief 通过 socket 发送消息
      * 
-     * @param buffer 要发送的数据
-     * @return int 同 send 函数
+     * @param buffer 要发送的字符串指针
+     * @return int 同 send 函数，成功 发送大小，失败 -1
      */
     int Send(char *buffer)
     {
@@ -250,6 +263,46 @@ class CSocket{
         return ret;
         
     }
+
+
+    /**
+     * @brief 格式化发送字符串，需要用到buf，请保证分配的buf足够大
+     * 
+     * @return int 成功 发送大小，失败 -1
+     */
+    int Send(const char *__restrict __fmt, ...)
+    {
+        va_list ap;
+        va_start (ap, __fmt);
+        ClearBuf();
+        if(vsprintf(buf, __fmt, ap) < 0)
+            return -1;
+        int ret = Send(buf);
+        va_end (ap);
+
+        return ret;
+    }
+
+
+    /**
+     * @brief 通过 socket 发送数据
+     * 
+     * @param buffer 要发送的数据指针
+     * @param len 数据大小
+     * @return int 同 send 函数
+     */
+    int Send(void *buffer, size_t len)
+    {
+        int ret = send(_socket, buffer, len, 0);
+        if(ret == -1)
+        {
+            std::cerr << "socket发送错误\n";
+        }
+        return ret;
+        
+    }
+
+
 
     /**
      * @brief 通过 socket 阻塞接收服务器消息，若对方断开则会马上返回0
