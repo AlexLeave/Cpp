@@ -57,6 +57,16 @@ class CFd
         
     }
 
+
+    ~CFd()
+    {
+        std::cout << "end\n";
+        Destroy();
+    }
+
+
+
+
     /**
      * @brief 找文件描述符在不在里面，在哪里
      * 

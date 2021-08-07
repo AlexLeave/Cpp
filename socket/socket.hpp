@@ -91,6 +91,13 @@ class CSocket{
         _type = type;
     }
 
+
+    ~CSocket()
+    {
+        Close();
+    }
+
+
     /**
      * @brief 返回 socket 文件描述符
      * 

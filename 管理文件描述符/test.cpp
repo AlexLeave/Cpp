@@ -32,6 +32,7 @@ int main(int argc, char const *argv[])
     fds->Add(20);
 
     std::cout << fds->Len();
+    delete fds;
 
 
     return 0;
