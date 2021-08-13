@@ -1,18 +1,19 @@
 /**
  * @file socket.hpp
  * @author csu-lf (csu.lifeng@qq.com)
- * @brief 封装了常用的网络编程的socket成CSocket类，请愉快的使用吧
- * 0.2 版本更改了类部分结构，让它更加适合多线程编程
- * 1.1 版本udp使用更加友好，添加RecvFrom等实用函数
  * 
- * @version 1.1
- * @date 2021-07-02
+ * socket改进版，对于编程逻辑更加清晰
+ * 
+ * @version 2.0
+ * @date 2021-08-13
  * 
  * @copyright Copyright (c) 2021
  * 
  */
-#ifndef _MY_SOCKET_
-#define _MY_SOCKET_ 1
+
+#ifndef __MY_SOCKET_H__
+#define __MY_SOCKET_H__ 1
+
 
 #include <iostream>
 #include <sys/socket.h>
@@ -27,43 +28,48 @@
 #include <stdarg.h>
 
 
+#define DEBUGMODE 1
 
-/**
- * @brief 使用C++类封装socket，创建socket只需要创建这个类，服务端socket使用server开头命名的函数
- * 客户端socket使用client开头命名的函数
- * 
- */
-class CSocket{
-    private:
+// 父类socket
+#define SOCKETERR -1
+#define BUFERR -2
+class MySocket
+{
+    protected:
     // socket文件描述符
-    int _socket;
-    // 测试接收web页面专用大小5k大小buf
-    char buf[5*1024]; 
-    // 结构体，存放客户端socket信息。对于udp服务端这是会变化的
-    // 对于Accpect后存放的是tcp连接客户端。对于RecvFrom后存放的是会话远端
-    struct sockaddr_in clntAddr; 
-    // socket类型，若是托管socket且用户没有规定，默认视为tcp
-    std::string _type = "tcp";
+    int _socket = -1;
+    struct sockaddr_in LocalSocketAddr;
+    // 缓冲区
+    void* _buf = NULL;
+    int BUFSIZE = 128;
+    // 保存上一次通讯的远端socket信息
+    struct sockaddr_in _remoteAddr;
+    // errno
+    int _errno = 0;
+
+    int init(std::string type);
+    int init(int socket);
 
 
+    int BufSize();
+    int SetBufSize(int size);
+    void ClearBuf() { memset(_buf, 0, BUFSIZE); }
+    char* LocalBindIP() { return inet_ntoa(LocalSocketAddr.sin_addr); }
+    int LocalBindPort() { return ntohs(LocalSocketAddr.sin_port); }
+   
     public:
     /**
      * @brief Construct a new CSocket object
      * 
      * @param type 填“udp”创建udp socket，否则为tcp socket
      */
-    CSocket(std::string type = "tcp")
+    MySocket(std::string type = "tcp")
     {
-        _type = type;
-        if (type == "udp")
+        _errno = init(type);
+        if (_errno < 0)
         {
-            _socket = socket(AF_INET, SOCK_DGRAM, 0);
+            printf("error,you can use function Err() to see what happened\n");            
         }
-        else
-        {
-            _socket = socket(AF_INET, SOCK_STREAM, 0);
-        }
-        memset(buf, 0, sizeof(buf));
     }
 
     /**
@@ -71,326 +77,590 @@ class CSocket{
      * 
      * @param socket 交给我的socket
      */
-    CSocket(int socket)
+    MySocket(int socket)
     {
-        if (socket > 1)
-            _socket = socket;
-        else 
-            printf("err: socket fd < 2\n");
+        _errno = init(socket);
+        if (_errno < 0)
+        {
+            printf("error,you can use function Err() to see what happened\n");
+        }
     }
 
-    /**
-     * @brief 把一个 socket 交给 CSocket类 来管理
-     * 
-     * @param socket 交给我的socket
-     * @param type socket类型
-     */
-    CSocket(int socket, std::string type)
+    ~MySocket()
     {
-        _socket = socket;
-        _type = type;
+        if (_buf)
+        {
+            free(_buf);
+        }
     }
 
+    int Socket();
+    void* Buf();
 
-    ~CSocket()
+    int Err();
+
+    int Bind(int port);
+    int Bind(const char* ip, int port);
+
+    int Close() { return close(_socket); }
+};
+
+
+
+class Udp : public MySocket
+{
+    protected:
+
+    public:
+    Udp():MySocket("udp")
     {
-        Close();
-    }
-
-
-    /**
-     * @brief 返回 socket 文件描述符
-     * 
-     * @return int 
-     */
-    int Socket()
-    {
-        return _socket;
-    }
-
-    /**
-     * @brief 返回接收缓冲区
-     * 
-     * @return char* buf缓冲区
-     */
-    char * Buf()
-    {
-        return buf;
-    }
-
-    int BufSize()
-    {
-        return sizeof(buf);
-    }
-
-
-    /**
-     * @brief 返回socket类型，如果是交个我托管时候没有设置，请不要相信我的返回值
-     * 
-     * @return std::string 类型，不是“tcp”就是“udp”
-     */
-    std::string Type()
-    {
-        return _type;
-    }
-
-    /**
-     * @brief 把 buf缓冲区清空
-     * 
-     */
-    void ClearBuf()
-    {
-        memset(buf, 0, sizeof(buf));
-    }
-
-
-    /**
-     * @brief 作为服务端第一步，绑定本机端口，默认监听所有网卡（0.0.0.0）
-     * 
-     * @param port 端口号
-     * @return int 
-     */
-    int Bind(int port)
-    {
-        
-        struct sockaddr_in serverAddr;
-        memset(&serverAddr, 0, sizeof(serverAddr));
-        serverAddr.sin_family = AF_INET;
-        serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-        serverAddr.sin_port = htons(port);
-
-        return bind(_socket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));        
-    }
-    
-//--------------------------------------------
-// 服务端专用函数
-
-    /**
-     * @brief 作为服务端第二步，设置成监听模式
-     * 
-     * @return int 同 listen 函数，成功 0，失败 -1
-     */
-    int Listen()
-    {
-        return listen(_socket, 20);
-    }
-
-    /**
-     * @brief 作为服务端第二步，设置成监听模式
-     * 
-     * @param num num个请求可以等待连接
-     * 
-     * @return int 同 listen 函数，成功 0，失败 -1
-     */
-    int Listen(int num)
-    {
-        return listen(_socket, num);
-    }
-
-
-    /**
-     * @brief udp不需要此函数直接Recv！阻塞等待tcp客户端连接，这会产生一个和客户端连接的新的socket，请你保存好 
-     * 你也可以使用 new CSocket(返回的int) 来把这个socket交给我的其它对象管理
-     * 
-     * @return int 返回客户端socket
-     */
-    int Accept()
-    {
-        socklen_t clntAddrSize = sizeof(clntAddr); // 结构体大小
-
-        // inet_ntoa(clntAddr.sin_addr); // 客户端ip
-        
-        // printf("客户端（%s）已连接。\n",inet_ntoa(clntAddr.sin_addr));
-
-        return accept(_socket, (struct sockaddr*)&clntAddr, &clntAddrSize);
         
     }
 
-    /**
-     * @brief 直接初始化作为tcp服务端socket，直接等待客户端连接
-     * 
-     * @param port 监听的端口号
-     * 
-     * @return int 连接到客户端的socket。Bind或Listen失败则返回-1，未考虑Accept失败
-     */
-    int S_Init(int port)
+    Udp(int socket):MySocket(socket)
     {
-        if (Bind(port) == 0 && Listen() == 0)
-        {
-            // socket监听成功
-            return Accept();
-        }
-        return -1;
+
     }
-
-
-
-//---------------------------------------------
-
-
-
-//---------------------------------------------
-// 客户端专用函数
-
-    /**
-     * @brief 连接服务端
-     * 
-     * @param ip 服务器地址
-     * @param port 服务器开放连接的端口号
-     * @return int 同 connect 函数，成功 0 ，失败 -1
-     */
-    int Connect(const char * ip, int port)
-    {
-        struct sockaddr_in serverAddr;
-        memset(&serverAddr, 0, sizeof(serverAddr));
-        serverAddr.sin_family = AF_INET;
-        serverAddr.sin_addr.s_addr = inet_addr(ip);
-        serverAddr.sin_port = htons(port);
-
-        return connect(_socket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
-    }
-
-
-//---------------------------------------------
-
-
-    /**
-     * @brief 通过 socket 发送消息
-     * 
-     * @param buffer 要发送的字符串指针
-     * @return int 同 send 函数，成功 发送大小，失败 -1
-     */
-    int Send(char *buffer)
-    {
-        int ret = send(_socket, buffer, strlen(buffer), 0);
-        if(ret == -1)
-        {
-            std::cerr << "socket发送错误\n";
-        }
-        return ret;
-        
-    }
-
-
-    /**
-     * @brief 格式化发送字符串，需要用到buf，请保证分配的buf足够大
-     * 
-     * @return int 成功 发送大小，失败 -1
-     */
-    int Send(const char *__restrict __fmt, ...)
-    {
-        va_list ap;
-        va_start (ap, __fmt);
-        ClearBuf();
-        if(vsprintf(buf, __fmt, ap) < 0)
-            return -1;
-        int ret = Send(buf);
-        va_end (ap);
-
-        return ret;
-    }
-
-
-    /**
-     * @brief 通过 socket 发送数据
-     * 
-     * @param buffer 要发送的数据指针
-     * @param len 数据大小
-     * @return int 同 send 函数
-     */
-    int Send(void *buffer, size_t len)
-    {
-        int ret = send(_socket, buffer, len, 0);
-        if(ret == -1)
-        {
-            std::cerr << "socket发送错误\n";
-        }
-        return ret;
-        
-    }
-
-
-
-    /**
-     * @brief 通过 socket 阻塞接收服务器消息，若对方断开则会马上返回0
-     * 
-     * @return int 接收的字符串数量
-     */
-    int Recv()
-    {
-        ClearBuf();
-        int bytes = recv(_socket, buf, sizeof(buf), 0);
-        if ( bytes < 0)
-        {
-            perror("接收recv函数错误");
-        }
-        else if ( bytes == 0 )
-        {
-            if (IsConnect()) printf("断开了连接\n");
-        }
-        return bytes;
-    }
-
-
-    /**
-     * @brief 同 Recv，只是返回的是连接客户端信息。
-     * 可以使用：inet_ntoa(函数返回->sin_addr) 获取连接地址字符串
-     * 
-     * @return struct sockaddr_in* 连接的地址，如果接收到0bytes或者运行错误返回NULL
-     */
-    struct sockaddr_in* RecvFrom()
-    {
-        ClearBuf();
-
-        memset(&clntAddr, 0, sizeof(clntAddr));
-        socklen_t clntAddrLen = sizeof(clntAddr);
-
-        int bytes = recvfrom(_socket, buf, sizeof(buf), 0, (struct sockaddr *)&clntAddr, &clntAddrLen);
-        // 判断接收
-        if ( bytes < 0 )
-        {
-            perror("接收recv函数错误");
-            return NULL;
-        }
-        else if ( bytes == 0 )
-        {
-            if (IsConnect()) printf("断开了连接\n");
-            return NULL;
-        }
-
-        return &clntAddr;
-    }
-
-
-
-    /**
-     * @brief 查看 socket 是否还连接着
-     * 
-     * @return true 未断开
-     * @return false 已断开
-     */
-    bool IsConnect()
-    {
-        struct tcp_info info; 
-        int len=sizeof(info); 
-        getsockopt(_socket, IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len);
-        if(info.tcpi_state == TCP_ESTABLISHED) return true;
-        else return false;
-    }
-    
-
-    /**
-     * @brief 作为服务端关闭用于监听的socket，作为客户端关闭与服务端的连接
-     * 
-     * @return int 同 close 函数
-     */
-    int Close()
-    {
-        return close(_socket);
-    }
-
 
 };
+class Tcp : public MySocket
+{
+    protected:
+
+    public:
+    Tcp():MySocket("tcp")
+    {
+        
+    }
+    Tcp(int socket):MySocket(socket)
+    {
+
+    }
+    // 用于服务端生成的连接客户端socket保存
+    Tcp(int socket, struct sockaddr_in* remoteAddr):MySocket(socket)
+    {
+        memcpy(&_remoteAddr, remoteAddr, sizeof(struct sockaddr_in));
+    }
+
+    int Recv();
+    int Send(void* ptr, int size);
+    bool IsConnect();
+};
+
+
+
+
+class UdpServer : public Udp
+{
+    protected:
+    struct sockaddr_in *clntAddr = &_remoteAddr;
+
+    public:
+    UdpServer():Udp()
+    {
+
+    }
+
+    UdpServer(int socket):Udp(socket)
+    {
+
+    }
+
+    int Bind(int port);
+    int Bind(const char* ip, int port);
+
+    int Recv();
+    int Send(void* ptr, int size);
+
+    char* ClientIP();
+    int ClientPort();
+
+};
+class UdpClient : public Udp
+{
+    protected:
+    struct sockaddr_in *serverAddr = &_remoteAddr;
+
+    public:
+    int Connect(const char * ip, int port);
+    int Send(void* ptr, int size);
+    int Recv();
+};
+
+
+
+
+class TcpServer : public Tcp
+{
+    protected:
+    struct sockaddr_in* clntAddr = &_remoteAddr;
+
+    public:
+    TcpServer():Tcp()
+    {
+
+    }
+    TcpServer(int socket):Tcp(socket)
+    {
+
+    }
+    TcpServer(char* ip, int port):Tcp()
+    {
+        Bind(ip, port);
+    }
+    
+
+
+    int Listen(int n);
+    int Accept();
+
+    int IsConnect();
+
+    struct sockaddr_in* ClientAddr();
+    char* ClientIP();
+    int ClientPort();
+
+};
+class TcpClient : public Tcp
+{
+    protected:
+    struct sockaddr_in *serverAddr = &_remoteAddr;
+
+    public:
+    TcpClient():Tcp()
+    {
+
+    }
+    TcpClient(int socket):Tcp(socket)
+    {
+
+    }
+    
+
+    int Connect(const char* ip, int port);
+};
+
+
+
+
+
+
+
+
+int MySocket::init(std::string type = "tcp")
+{
+    memset(&LocalSocketAddr, 0, sizeof(struct sockaddr_in));
+    memset(&_remoteAddr, 0, sizeof(struct sockaddr_in));
+    if (type == "udp")
+    {
+        _socket = socket(AF_INET, SOCK_DGRAM, 0);
+    }
+    else
+    {
+        _socket = socket(AF_INET, SOCK_STREAM, 0);
+    }
+
+    if (_socket < 0)
+    {
+        #if DEBUGMODE
+        printf("error occurred at %s.%d", __FILE__, __LINE__);
+        #endif
+        return SOCKETERR;
+    }
+
+    _buf = malloc(BUFSIZE);
+
+    if (!_buf)
+    {
+        #if DEBUGMODE
+        printf("error occurred at %s.%d", __FILE__, __LINE__);
+        #endif
+        return BUFERR;
+    }
+    ClearBuf();
+
+    return 0;
+
+}
+
+
+int MySocket::init(int socket)
+{
+    if (socket > 1)
+            _socket = socket;
+    else
+    {
+        #if DEBUGMODE
+        printf("error occurred at %s.%d", __FILE__, __LINE__);
+        #endif
+        return SOCKETERR;
+    }
+            
+    _buf = malloc(BUFSIZE);
+
+    if (!_buf)
+    {
+        #if DEBUGMODE
+        printf("error occurred at %s.%d", __FILE__, __LINE__);
+        #endif
+        return BUFERR;
+    }
+    ClearBuf();
+
+    return 0;
+}
+
+
+/**
+ * @brief 打印错误提示
+ * 
+ * @return int _errno
+ */
+int MySocket::Err()
+{
+    if (_errno == SOCKETERR)
+    {
+        printf("create socket failed\n");
+    }
+    else if (_errno == BUFERR)
+    {
+        printf("create buf failed\n");
+    }
+    else
+    {
+        printf("error undefined, see the return number to guess what happened\n");
+    }
+
+    return _errno;
+}
+
+
+/**
+ * @brief 返回 socket 文件描述符
+ * 
+ * @return int 
+ */
+int MySocket::Socket()
+{
+    return _socket;
+}
+
+/**
+ * @brief 返回接收缓冲区
+ * 
+ * @return void* buf缓冲区
+ */
+void * MySocket::Buf()
+{
+    return _buf;
+}
+
+/**
+ * @brief 返回缓冲区大小
+ * 
+ * @return int 
+ */
+int MySocket::BufSize()
+{
+    return BUFSIZE;
+}
+
+
+/**
+ * @brief 设置buf大小
+ * 
+ * @param size 
+ * @return int 成功 0，失败 < 0。失败buf不变
+ */
+int MySocket::SetBufSize(int size)
+{
+    void *tmpbuf;
+    if (_buf)
+    {
+        tmpbuf = malloc(size);
+        if (!tmpbuf)
+        {
+            _errno = BUFERR;
+            return _errno;
+        }
+        free(_buf);
+        _buf = tmpbuf;
+    }
+
+    BUFSIZE = size;
+    return 0;
+}
+
+
+/**
+ * @brief Socket绑定本机端口，默认监听所有网卡（0.0.0.0）
+ * 
+ * @param port 端口号
+ * @return int 成功 0，失败-1
+ */
+int MySocket::Bind(int port)
+{
+    memset(&LocalSocketAddr, 0, sizeof(LocalSocketAddr));
+    LocalSocketAddr.sin_family = AF_INET;
+    LocalSocketAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    LocalSocketAddr.sin_port = htons(port);
+
+    return bind(_socket, (struct sockaddr *)&LocalSocketAddr, sizeof(LocalSocketAddr));        
+}
+
+
+
+/**
+ * @brief Socket绑定本机端口，默认监听所有网卡（0.0.0.0）
+ * 
+ * @param port 端口号
+ * @return int 成功 0，失败-1
+ */
+int MySocket::Bind(const char *ip, int port)
+{
+    memset(&LocalSocketAddr, 0, sizeof(LocalSocketAddr));
+    LocalSocketAddr.sin_family = AF_INET;
+    // LocalSocketAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    if ((LocalSocketAddr.sin_addr.s_addr = inet_addr(ip)) == -1 )
+        return -1;
+    LocalSocketAddr.sin_port = htons(port);
+
+    return bind(_socket, (struct sockaddr *)&LocalSocketAddr, sizeof(LocalSocketAddr));        
+}
+
+
+
+
+
+
+
+
+/**
+ * @brief Socket绑定本机端口，默认监听所有网卡（0.0.0.0）
+ * 
+ * @param port 端口号
+ * @return int 成功 0，失败-1
+ */
+int UdpServer::Bind(int port)
+{
+    memset(&LocalSocketAddr, 0, sizeof(LocalSocketAddr));
+    LocalSocketAddr.sin_family = AF_INET;
+    LocalSocketAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    LocalSocketAddr.sin_port = htons(port);
+
+    return 0;  
+}
+/**
+ * @brief Socket绑定本机端口，默认监听所有网卡（0.0.0.0）
+ * 
+ * @param port 端口号
+ * @return int 成功 0，失败-1
+ */
+int UdpServer::Bind(const char *ip, int port)
+{
+    memset(&LocalSocketAddr, 0, sizeof(LocalSocketAddr));
+    LocalSocketAddr.sin_family = AF_INET;
+    if ((LocalSocketAddr.sin_addr.s_addr = inet_addr(ip)) == -1 )
+        return -1;
+    LocalSocketAddr.sin_port = htons(port);
+
+    return 0;       
+}
+
+
+/**
+ * @brief 接收消息
+ * 
+ * @return int 成功接收的字节数 >= 0，失败 -1
+ */
+int UdpServer::Recv()
+{
+    socklen_t clntAddrLen = sizeof(struct sockaddr_in);
+    ClearBuf();
+    return recvfrom(Socket(), Buf(), BufSize(), 0, (struct sockaddr*)clntAddr, &clntAddrLen);
+}
+
+
+/**
+ * @brief 发送消息，在此之前请先接收消息获取到客户端socket，否则请使用sendto函数自行指定
+ * 
+ * @param ptr 发送消息保存的位置
+ * @param size 消息大小
+ * @return int 成功发送的字节数 >= 0，失败 -1
+ */
+int UdpServer::Send(void* ptr, int size)
+{
+    socklen_t clntAddrLen = sizeof(struct sockaddr_in);
+    return sendto(Socket(), ptr, size, 0, (struct sockaddr*)clntAddr, clntAddrLen);
+}
+
+
+/**
+ * @brief 返回获取到客户端的IP
+ * 
+ * @return char* 
+ */
+char* UdpServer::ClientIP()
+{
+    return inet_ntoa(clntAddr->sin_addr);
+}
+
+/**
+ * @brief 返回获取到客户端的端口
+ * 
+ * @return int 
+ */
+int UdpServer::ClientPort()
+{
+    return ntohs(clntAddr->sin_port);
+}
+
+
+
+
+
+
+/**
+ * @brief 设置服务端，并非连接。假连接
+ * 
+ * @param ip 服务器地址
+ * @param port 服务器开放连接的端口号
+ * @return int 恒为0
+ */
+int UdpClient::Connect(const char * ip, int port)
+{
+    memset(serverAddr, 0, sizeof(struct sockaddr_in));
+    serverAddr->sin_family = AF_INET;
+    serverAddr->sin_addr.s_addr = inet_addr(ip);
+    serverAddr->sin_port = htons(port);
+
+    // return connect(Socket(), (struct sockaddr *)serverAddr, sizeof(struct sockaddr_in));
+    return 0;
+}
+
+
+
+/**
+ * @brief 向服务端发送消息
+ * 
+ * @param ptr 消息保存地址
+ * @param size 消息大小
+ * @return int 成功 >= 0，失败 -1
+ */
+int UdpClient::Send(void* ptr, int size)
+{
+    socklen_t serverAddrLen = sizeof(struct sockaddr_in);
+    return sendto(Socket(), ptr, size, 0, (sockaddr*)serverAddr, serverAddrLen);
+}
+
+
+/**
+ * @brief 返回接收字符多少个
+ * 
+ * @return int 成功 >= 0，失败 -1
+ */
+int UdpClient::Recv()
+{
+    ClearBuf();
+    return recvfrom(Socket(), Buf(), BufSize(), 0, NULL, NULL);
+}
+
+/**
+ * tcp发送数据
+ * 
+ * @param ptr 要发送的数据
+ * @param size 发送数据大小
+ * @return int 成功 发送了多少数据 >=0，失败 -1
+ */
+int Tcp::Send(void* ptr, int size)
+{
+    return send(Socket(), ptr, size, 0);
+}
+
+/**
+ * tcp接收数据保存到buf
+ * 
+ * @return int 成功 接收了多少字节数据 >= 0，失败 -1
+ */
+int Tcp::Recv()
+{
+    ClearBuf();
+    return recv(Socket(), Buf(), BufSize(), 0);
+}
+
+
+/**
+ * @brief 查看 socket 是否还连接着
+ * 
+ * @return true 未断开
+ * @return false 已断开
+ */
+bool Tcp::IsConnect()
+{
+    struct tcp_info info; 
+    int len = sizeof(info); 
+    getsockopt(Socket(), IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len);
+    if(info.tcpi_state == TCP_ESTABLISHED) return true;
+    else return false;
+}
+
+
+
+
+/**
+ * @brief 设置监听模式和等待阻塞数量
+ * 
+ * @param n 
+ * @return int 成功 0，失败 -1
+ */
+int TcpServer::Listen(int n = 20)
+{
+    return listen(Socket(), n);
+}
+
+
+/**
+ * @brief 等待tcp客户端连接，返回连接到客户端的socket
+ * 
+ * @return int 连接到客户端的socket，请好好保存
+ */
+int TcpServer::Accept()
+{
+    socklen_t clntAddrLen = sizeof(struct sockaddr_in);
+    return accept(_socket, (struct sockaddr*)&clntAddr, &clntAddrLen);
+}
+
+
+/**
+ * @brief 返回连接到的客户端结构体指针
+ * 
+ * @return struct sockaddr_in* 
+ */
+struct sockaddr_in* TcpServer::ClientAddr()
+{
+    return clntAddr;
+}
+
+
+
+/**
+ * @brief tcp客户端连接服务端
+ * 
+ * @param ip 服务器地址
+ * @param port 服务器开放连接的端口号
+ * @return int 成功 0，失败 -1
+ */
+int TcpClient::Connect(const char * ip, int port)
+{
+    memset(serverAddr, 0, sizeof(struct sockaddr_in));
+    serverAddr->sin_family = AF_INET;
+    serverAddr->sin_addr.s_addr = inet_addr(ip);
+    serverAddr->sin_port = htons(port);
+
+    return connect(Socket(), (struct sockaddr *)serverAddr, sizeof(struct sockaddr_in));
+}
+
+
 
 
 #endif

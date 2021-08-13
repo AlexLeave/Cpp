@@ -1,6 +1,7 @@
 main:
-	g++ server.cpp -o server -lpthread
-	g++ client.cpp -o client
-
+	g++ udpclient.cpp -o udpclient
+	g++ udpserver.cpp -o udpserver
+	g++ tcpclient.cpp -o tcpclient
+	g++ tcpserver.cpp -o tcpserver
 clean:
-	rm server client
+	rm udpserver udpclient tcpclient

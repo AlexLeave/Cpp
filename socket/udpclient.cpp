@@ -1,0 +1,81 @@
+#include <stdio.h>
+#include "socket.hpp"
+
+void test_udpclient(char **argv)
+{
+    class UdpClient* client = new UdpClient();
+    client->Connect(argv[1], atoi(argv[2]));
+    char buf[100];
+
+    printf("connected\n");
+
+    while (1)
+    {
+        memset(buf, 0, sizeof(buf));
+        printf("input:");
+        scanf("%s", buf);
+        if (strcmp(buf, "q") == 0)
+            break;
+        if (client->Send(buf, strlen(buf)) >= 0)
+            printf("send:%s\n", buf);
+        else
+        {
+            client->Err();
+        }
+    }
+
+    client->Close();
+    delete client;
+    printf("bye~~\n");
+
+}
+
+
+
+void test_rtp(char **argv)
+{
+    class UdpClient* client = new UdpClient();
+    client->Connect(argv[1], atoi(argv[2]));
+    unsigned char buf[] = {
+        0x80,0x68,0x0f,0x71,0x00,0x02,
+        0xde,0x10,0x3f,0xbc,0xc5,0x01,0x7c,0x01,0x9c,0x1f,0x25,0x1e,0x85,0x31,0x51,0xb3,
+        0xbf,0x26,0x3a,0xd3,0x9f,0x48,0x7a,0x21,0x16,0xab,0xb8,0x98,0xe9,0x7b,0x50,0xed,
+        0xe2,0xae,0x38,0xec,0x9b,0xca,0x38,0xdf,0x3f,0x59,0x97,0x19,0xc2,0x97,0x7f,0x3f,
+        0x2a,0x21,0x72,0xfe,0x36,0xdd,0xbe,0x12,0x06,0xa5,0xa8,0x8d,0xd8,0xb0,0xe7,0xc2,
+        0xfb,0xfe,0x99,0xb1,0xc4,0xff,0x8b,0xaf,0x7d,0x37,0xc0,0xf2,0xe1,0x06,0x57,0xa5
+    };
+
+    printf("connected\n");
+
+    for (int i = 0; i < 100; i++)
+    {
+        usleep(100000);
+        if (client->Send(buf, sizeof(buf)) >= 0)
+        {
+            // printf("send:%s\n", buf);
+        }
+        else
+        {
+            client->Err();
+        }
+    }
+
+    client->Close();
+    delete client;
+    printf("bye~~\n");
+
+}
+
+
+
+
+
+
+int main(int argc, char *argv[])
+{
+    // 示例：./udpclient 172.17.0.2 10086
+    test_rtp(argv);
+    return 0;
+}
+
+
